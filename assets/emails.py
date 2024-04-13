@@ -1,8 +1,10 @@
 import os
 import pandas as pd
 import win32com.client
+import pythoncom
 
-def email_reply(description: str, display: str):
+
+def email_reply(description: str, subject: str, display: str):
     """
     Introduction
     ------------
@@ -18,61 +20,67 @@ def email_reply(description: str, display: str):
         - subject: String, no default values. Introducing the subject name of the email.
         - display: String, no default values. Selecting whether to visualize the email before sending it or autosend.
     """
-
-    # Excel folder for file attachment
-    path = os.getcwd().replace('\\', '/') + '/files'
     
-    # Initializes Outlook
-    Outlook = win32com.client.Dispatch('outlook.application').GetNamespace("MAPI")
-
-    # Redirects to Inbox
-    inbox = Outlook.GetDefaultFolder(6)
+    # If either the description, subject, display parameters are empty and no files were found within the files folder program will not initialize
+    if description != "" and subject != "" and display != "" and os.listdir(os.getcwd().replace('\\', '/') + '/files') != []:
     
-    # Checks all elements in Inbox
-    messages = inbox.Items
+        #Calling CoInitialize
+        pythoncom.CoInitialize()
 
-    # Obtains only last message or most current lookup
-    message = messages.GetLast()
+        # Excel folder for file attachment
+        path = os.getcwd().replace('\\', '/') + '/files'
+        
+        # Initializes Outlook
+        Outlook = win32com.client.Dispatch('outlook.application').GetNamespace("MAPI")
 
-    # Loops through all messages, opens and select on reply to the indicated by the user
-    for message in messages:
-        # In case the subject and the folder are not empty the program will proceed
-        if message.Subject != "" and os.listdir(path)[-1] != []:
-            reply = message.ReplyAll()
-            # Places an standard body and attaches the last Excel File from the excel_reports folder
-            reply.HTMLBody = f"""
-                <html>
-                    <head>
-                    </head>
-                        <body>
-                            <p>Hello there,
-                            <br>
-                            <br>
-                            {description}
-                            <br>
-                            <br>
-                            I will be attentive to your comments, have an excellent day!
-                            <br>
-                            <br>
-                            Best Regards,
-                            <br>
-                            </p>
-                        </body>
-                </html>""" + reply.HTMLBody
-            # Incluides attachment of Excel file
-            reply.Attachments.Add(f'{path}/{str(os.listdir(path)[-1])}')
+        # Redirects to Inbox
+        inbox = Outlook.GetDefaultFolder(6)
+        
+        # Checks all elements in Inbox
+        messages = inbox.Items
 
-        # In case of empty parameters
-        else:
-            print("Enter a subject or place a file within the folder.")
+        # Obtains only last message or most current lookup
+        message = messages.GetLast()
+
+        # Loops through all messages, opens and select on reply to the indicated by the user
+        for message in messages:
+            # If the messahe is found and there is a file within the files folder
+            if message.Subject == subject and os.listdir(path) != []:
+                # Select on Reply All in the email found
+                reply = message.ReplyAll()
+                # Places an standard body and attaches the last Excel File from the excel_reports folder
+                reply.HTMLBody = f"""
+                    <html>
+                        <head></head>
+                            <body>
+                                <p>Hello there,
+                                <br>
+                                <br>
+                                {description}
+                                <br>
+                                <br>
+                                I will be attentive to your comments, have an excellent day!
+                                <br>
+                                <br>
+                                Best Regards,
+                                <br>
+                                </p>
+                            </body>
+                    </html>""" + reply.HTMLBody
+                reply.Attachments.Add(f'{path}/{str(os.listdir(path)[-1])}')
+                
+                # Would you prefer to check the contents of the email before sending it?
+                if display == 'Y' or display == 'y':
+                    reply.Display()
+                
+                # Sending email straightforwardly
+                elif display == 'N' or display == 'n':
+                    reply.Send()
+
+    # In case of empty parameters
+    else:
+        print("Enter a subject or place a file within the folder.")
     
-    # Would you prefer to check the contents of the email before sending it?
-    if display == 'Y' or display == 'y':
-        reply.Display()
-    
-    # Sending email straightforwardly
-    elif display == 'N' or display == 'n':
-        reply.Send()
 
 def email_send(subject: str, priority: int, description: str, display: str):
     """
@@ -97,59 +105,72 @@ def email_send(subject: str, priority: int, description: str, display: str):
     """
         
     # Reading Excel file
-    df = pd.read_excel(f'{os.getcwd().replace("\\", "/")}/emails/Emails.xlsx', sheet_name = "Emails")
+    df = pd.read_excel(f'{os.getcwd().replace("\\", "/")}/emails/Emails.xlsx', sheet_name = "Emails", engine = 'openpyxl')
 
     # Excel folder for file attachment
     path = os.getcwd().replace('\\', '/') + '/files'
 
-    # Initializes Outlook
-    Outlook = win32com.client.Dispatch('outlook.application')
+    # Signature path
+    signature = os.getcwd().replace('\\', '/') + '/signature'
 
-    # Iterating through all values from the column Email to be included within the To whitespace
-    for emails in df['Email']:
-        # Splitting name by period and switching string to Capital
-        name = emails.partition('.')[0].capitalize()
-        # Selecting on New Email
-        mail = Outlook.CreateItem(0)
-        # Placing all emails from the Excel file in the To whitespace
-        mail.To = emails
-        # Subject defined by the user
-        mail.Subject = subject
-        # HTML syntax about the content of how the email will look like
-        mail.HTMLBody = f"""                       
-            <html>
-                <head>
-                </head>
-                <body>
-                    <main>
-                        <p>Hello {name}, 
-                        <br>
-                        <br>
-                        {description}
-                        <br>
-                        <br>
-                        We greatly appreciate from your time and attention,
-                        <br>
-                        <br>
-                        Regards,
-                        <br>
-                        <br>
-                        <img src = "file:{os.getcwd().replace('\\', '/') + '/signature/' + {os.listdir(os.getcwd().replace('\\', '/') + '/signature/')[0]}}" width = 25%>
-                        </p>
-                    </main>
-                </body>
-            </html>"""
-        
-        # Attaching files
-        mail.Attachments.Add(f'{path}/{str(os.listdir(path)[-1])}')
-        
-        # Defining priority
-        mail.Importance = priority
+    # Signature file
+    signature_file = signature + '/' + os.listdir(os.getcwd().replace('\\', '/') + '/signature/')[0]
 
-        # Would you prefer to check the contents of the email before sending it?
-        if display == 'Y' or display == 'y':
-            mail.Display()
+    if os.listdir(path) != [] and not df.empty and os.listdir(signature) != []:
+        #Calling CoInitialize
+        pythoncom.CoInitialize()
+        # Initializes Outlook
+        Outlook = win32com.client.Dispatch('outlook.application')
 
-        # Sending email straightforwardly
-        elif display == 'N' or display == 'n':
-            mail.Send()
+        # Iterating through all values from the column Email to be included within the To whitespace
+        for emails in df['Email']:
+            # Splitting name by period and switching string to Capital
+            name = emails.partition('.')[0].capitalize()
+            # Selecting on New Email
+            mail = Outlook.CreateItem(0)
+            # Placing all emails from the Excel file in the To whitespace
+            mail.To = emails
+            # Subject defined by the user
+            mail.Subject = subject
+            # HTML syntax about the content of how the email will look like
+            mail.HTMLBody = f"""                       
+                <html>
+                    <head>
+                    </head>
+                    <body>
+                        <main>
+                            <p>Hello {name}, 
+                            <br>
+                            <br>
+                            {description}
+                            <br>
+                            <br>
+                            We greatly appreciate from your time and attention,
+                            <br>
+                            <br>
+                            Regards,
+                            <br>
+                            <br>
+                            <img src = "file:{signature_file}" width = 25%>
+                            </p>
+                        </main>
+                    </body>
+                </html>"""
+            
+            # Attaching files
+            mail.Attachments.Add(path + '/' + str(os.listdir(path)[-1]))
+            
+            # Defining priority
+            mail.Importance = priority
+
+            # Would you prefer to check the contents of the email before sending it?
+            if display == 'Y' or display == 'y':
+                mail.Display()
+
+            # Sending email straightforwardly
+            elif display == 'N' or display == 'n':
+                mail.Send()
+
+    else:
+        # Empty options
+        print("Either the Emails Excel file is empty, no signatures were included or no files were attached in the folder.")
