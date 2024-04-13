@@ -21,65 +21,71 @@ def email_reply(description: str, subject: str, display: str):
         - display: String, no default values. Selecting whether to visualize the email before sending it or autosend.
     """
     
-    # If either the description, subject, display parameters are empty and no files were found within the files folder program will not initialize
-    if description != "" and subject != "" and display != "" and os.listdir(os.getcwd().replace('\\', '/') + '/files') != []:
-    
-        #Calling CoInitialize
-        pythoncom.CoInitialize()
+    # Excel folder for file attachment
+    path = os.getcwd().replace('\\', '/') + '/files'
+    # Signature folder for signature attachment
+    signature = os.getcwd().replace('\\', '/') + '/signature'
 
-        # Excel folder for file attachment
-        path = os.getcwd().replace('\\', '/') + '/files'
-        
-        # Initializes Outlook
-        Outlook = win32com.client.Dispatch('outlook.application').GetNamespace("MAPI")
+    # If files folder does not exist, it will create a new one
+    if not os.path.exists(path):
+        os.mkdir(path)
 
-        # Redirects to Inbox
-        inbox = Outlook.GetDefaultFolder(6)
-        
-        # Checks all elements in Inbox
-        messages = inbox.Items
-
-        # Obtains only last message or most current lookup
-        message = messages.GetLast()
-
-        # Loops through all messages, opens and select on reply to the indicated by the user
-        for message in messages:
-            # If the messahe is found and there is a file within the files folder
-            if message.Subject == subject and os.listdir(path) != []:
-                # Select on Reply All in the email found
-                reply = message.ReplyAll()
-                # Places an standard body and attaches the last Excel File from the excel_reports folder
-                reply.HTMLBody = f"""
-                    <html>
-                        <head></head>
-                            <body>
-                                <p>Hello there,
-                                <br>
-                                <br>
-                                {description}
-                                <br>
-                                <br>
-                                I will be attentive to your comments, have an excellent day!
-                                <br>
-                                <br>
-                                Best Regards,
-                                <br>
-                                </p>
-                            </body>
-                    </html>""" + reply.HTMLBody
-                reply.Attachments.Add(f'{path}/{str(os.listdir(path)[-1])}')
-                
-                # Would you prefer to check the contents of the email before sending it?
-                if display == 'Y' or display == 'y':
-                    reply.Display()
-                
-                # Sending email straightforwardly
-                elif display == 'N' or display == 'n':
-                    reply.Send()
-
-    # In case of empty parameters
     else:
-        print("Enter a subject or place a file within the folder.")
+        # If either the description, subject, display parameters are empty and no files were found within the files folder program will not initialize
+        if description != "" and subject != "" and display != "" and os.listdir(os.getcwd().replace('\\', '/') + '/files') != []:
+            #Calling CoInitialize
+            pythoncom.CoInitialize()
+            
+            # Initializes Outlook
+            Outlook = win32com.client.Dispatch('outlook.application').GetNamespace("MAPI")
+
+            # Redirects to Inbox
+            inbox = Outlook.GetDefaultFolder(6)
+            
+            # Checks all elements in Inbox
+            messages = inbox.Items
+
+            # Obtains only last message or most current lookup
+            message = messages.GetLast()
+
+            # Loops through all messages, opens and select on reply to the indicated by the user
+            for message in messages:
+                # If the messahe is found and there is a file within the files folder
+                if message.Subject == subject and os.listdir(path) != []:
+                    # Select on Reply All in the email found
+                    reply = message.ReplyAll()
+                    # Places an standard body and attaches the last Excel File from the excel_reports folder
+                    reply.HTMLBody = f"""
+                        <html>
+                            <head></head>
+                                <body>
+                                    <p>Hello there,
+                                    <br>
+                                    <br>
+                                    {description}
+                                    <br>
+                                    <br>
+                                    I will be attentive to your comments, have an excellent day!
+                                    <br>
+                                    <br>
+                                    Best Regards,
+                                    <br>
+                                    </p>
+                                </body>
+                        </html>""" + reply.HTMLBody
+                    reply.Attachments.Add(f'{path}/{str(os.listdir(path)[-1])}')
+                    
+                    # Would you prefer to check the contents of the email before sending it?
+                    if display == 'Y' or display == 'y':
+                        reply.Display()
+                    
+                    # Sending email straightforwardly
+                    elif display == 'N' or display == 'n':
+                        reply.Send()
+
+        # In case of empty parameters
+        else:
+            print("Enter a subject or place a file within the folder.")
     
 
 def email_send(subject: str, priority: int, description: str, display: str):
@@ -112,6 +118,14 @@ def email_send(subject: str, priority: int, description: str, display: str):
 
     # Signature path
     signature = os.getcwd().replace('\\', '/') + '/signature'
+
+    # If files folder does not exist, it will create a new one
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    # If signature folder does not exist, it will create a new one
+    elif not os.path.exists(signature):
+        os.mkdir(signature)
 
     # Signature file
     signature_file = signature + '/' + os.listdir(os.getcwd().replace('\\', '/') + '/signature/')[0]
